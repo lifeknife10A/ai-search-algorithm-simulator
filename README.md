@@ -62,52 +62,6 @@ Build for production:
 npm run build
 ```
 
-## Upload to GitHub Pages
-
-This project is ready for GitHub Pages using the workflow in
-`.github/workflows/deploy.yml`.
-
-1. Create a new GitHub repository, for example:
-
-```text
-minimax-alpha-beta-simulator
-```
-
-2. Open the GitHub-ready project folder in Terminal:
-
-```bash
-cd "/Users/krish/Desktop/Computer Organization & Architecture/Poster/minimax-alpha-beta-simulator-github"
-```
-
-3. Push the project to GitHub:
-
-```bash
-git init
-git add .
-git commit -m "Add minimax alpha-beta simulator"
-git branch -M main
-git remote add origin https://github.com/YOUR_USERNAME/minimax-alpha-beta-simulator.git
-git push -u origin main
-```
-
-4. In the GitHub repository, open:
-
-```text
-Settings -> Pages
-```
-
-5. Set the source to:
-
-```text
-GitHub Actions
-```
-
-After the workflow finishes, the site will be available at:
-
-```text
-https://YOUR_USERNAME.github.io/minimax-alpha-beta-simulator/
-```
-
 ## Dependencies
 
 - React
