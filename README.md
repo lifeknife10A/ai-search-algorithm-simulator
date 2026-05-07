@@ -1,5 +1,11 @@
 # Minimax + Alpha-Beta Pruning Simulator
 
+## Direct Viewing
+
+Open the live simulator here:
+
+https://lifeknife10a.github.io/minimax-alpha-beta-simulator/
+
 This is a frontend-only React project made with Vite. It lets you create and
 edit a game tree, then run Minimax or Alpha-Beta Pruning with visual steps.
 
