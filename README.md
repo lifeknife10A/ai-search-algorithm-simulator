@@ -1,4 +1,4 @@
-# Minimax + Alpha-Beta Pruning Simulator
+# Minimax, Alpha-Beta, A*, and AO* Simulator
 
 ## Direct Viewing
 
@@ -6,15 +6,17 @@ Open the live simulator here:
 
 https://lifeknife10a.github.io/minimax-alpha-beta-simulator/
 
-This is a frontend-only React project made with Vite. It lets you create and
-edit a game tree, then run Minimax or Alpha-Beta Pruning with visual steps.
+This is a frontend-only React project made with Vite. It is an interactive
+academic simulator for learning Minimax, Alpha-Beta Pruning, A* search, and
+AO* search using visual graph steps.
 
 ## Folder Structure
 
 ```text
-poster-app/
+minimax-alpha-beta-simulator/
   index.html
   package.json
+  README.md
   src/
     App.jsx
     App.css
@@ -25,27 +27,54 @@ poster-app/
 
 ## Main Features
 
-- Generate a sample depth-3 game tree with 8 leaf nodes
-- Create a tree manually by adding and removing nodes
-- Edit node labels and leaf utility values
+- Create and edit trees manually
+- Add and remove nodes
+- Edit node labels
+- Edit utility values, including negative utilities
+- Edit heuristic values for search algorithms
+- Edit edge costs for A* and AO*
 - Run normal Minimax
 - Run Alpha-Beta Pruning
-- Run A* search on weighted heuristic graphs
-- Run AO* search on weighted AND-OR graphs
-- Generate an AO* exam-style question graph
-- Generate an A* sample graph
-- Step forward and backward through each algorithm
-- Reset the simulation without deleting the tree
-- Show node name, type, minimax value, alpha, beta, visited state, and pruned state
-- Highlight the current node, pruned branches, final selected path, and root answer
-- Use a floating Step Forward button directly on the graph
-- Use Focus Graph mode so only the graph and floating controls are visible while stepping
-- Open Exam Mode as a sliding drawer instead of a fixed side panel
-- Toggle dark mode
-- Autosave the tree and current state in the browser
-- Warn before leaving the page when Safe Leave is enabled
-- Show an execution log and simple Exam Mode explanation for each step
-- Edit search graph heuristic values and edge costs
+- Run A* search
+- Run AO* search
+- Generate a Minimax and Alpha-Beta example tree
+- Generate an A* example graph
+- Generate an AO* AND-OR graph
+- Use AO* `OR option` and `AND group` connections from a parent node
+- Step forward and step back through the algorithm
+- Reset the simulation without deleting the graph
+- Highlight the current node
+- Highlight the final selected path
+- Mark pruned branches visually
+- Show the root answer clearly
+- Show alpha and beta values for Minimax and Alpha-Beta nodes
+- Show node type, value, visited state, and pruned state
+- Use dark mode
+- Use Focus Graph mode while stepping
+- Use floating Step Forward and Step Back controls on the graph
+- Use Safe Leave and browser autosave to avoid losing work
+- Open Exam Mode as a sliding explanation panel
+- View a step-by-step execution log
+
+## AO* Notes
+
+AO* uses an AND-OR graph.
+
+- `OR` node: choose the cheapest available option
+- `AND` node: all child branches are required
+- `OR option`: the child is treated as one separate option from its parent
+- `AND group`: grouped children are solved together from the parent
+
+Example:
+
+```text
+A connects to B, C, and D
+B is an OR option
+C and D are in one AND group
+```
+
+In the simulator, select `C` and `D`, then set `Connection From Parent` to
+`AND group`.
 
 ## Run Locally
 
