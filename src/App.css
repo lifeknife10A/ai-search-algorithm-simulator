@@ -614,6 +614,17 @@ button {
     stroke-dasharray: 6 6;
 }
 
+.and-arc-label {
+    fill: var(--purple-color);
+    paint-order: stroke;
+    stroke: var(--canvas-background);
+    stroke-width: 5px;
+    stroke-linejoin: round;
+    font-size: 13px;
+    font-weight: 900;
+    text-anchor: middle;
+}
+
 .node-shell {
     width: 100%;
     height: 100%;

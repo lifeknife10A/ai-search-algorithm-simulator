@@ -17,11 +17,13 @@ export function createTreeNode(
         beta: null,
         heuristic: typeof nodeValue === 'number' ? nodeValue : 0,
         edgeCost: 1,
+        edgeRelation: 'OR',
         pathCost: null,
         totalCost: null,
         solved: false,
         expanded: false,
         parentId: null,
+        selectedChildIds: [],
         children: nodeChildren || [],
         visited: false,
         pruned: false,
@@ -36,7 +38,8 @@ export function createSearchNode(
     nodeType,
     heuristicValue,
     edgeCost,
-    nodeChildren
+    nodeChildren,
+    edgeRelation
 ) {
     const node = createTreeNode(
         nodeId,
@@ -48,6 +51,7 @@ export function createSearchNode(
 
     node.heuristic = heuristicValue;
     node.edgeCost = edgeCost;
+    node.edgeRelation = edgeRelation || 'OR';
 
     return node;
 }
@@ -84,11 +88,14 @@ export function createSingleRootTree() {
 }
 
 export function createSingleSearchRootTree() {
-    return createSearchNode('A', 'A', 'OR', 0, 0, []);
+    const rootNode = createSearchNode('A', 'A', 'OR', 0, 0, []);
+    rootNode.edgeRelation = 'ROOT';
+
+    return rootNode;
 }
 
 export function createAStarExampleTree() {
-    return createSearchNode('A', 'A', 'NODE', 7, 0, [
+    const rootNode = createSearchNode('A', 'A', 'NODE', 7, 0, [
         createSearchNode('B', 'B', 'NODE', 6, 1, [
             createSearchNode('E', 'E', 'NODE', 3, 3, [
                 createSearchNode('K', 'K', 'GOAL', 0, 2, []),
@@ -103,23 +110,31 @@ export function createAStarExampleTree() {
             createSearchNode('I', 'I', 'GOAL', 0, 5, []),
         ]),
     ]);
+
+    rootNode.edgeRelation = 'ROOT';
+
+    return rootNode;
 }
 
 export function createAOStarExampleTree() {
-    return createSearchNode('A', 'A', 'OR', 0, 0, [
+    const rootNode = createSearchNode('A', 'A', 'OR', 0, 0, [
         createSearchNode('B', 'B', 'OR', 5, 1, [
             createSearchNode('E', 'E', 'LEAF', 7, 1, []),
             createSearchNode('F', 'F', 'LEAF', 9, 1, []),
-        ]),
+        ], 'OR'),
         createSearchNode('C', 'C', 'AND', 2, 1, [
-            createSearchNode('G', 'G', 'LEAF', 3, 1, []),
-            createSearchNode('H', 'H', 'LEAF', 0, 1, []),
-            createSearchNode('I', 'I', 'LEAF', 0, 1, []),
-        ]),
+            createSearchNode('G', 'G', 'LEAF', 3, 1, [], 'AND'),
+            createSearchNode('H', 'H', 'LEAF', 0, 1, [], 'AND'),
+            createSearchNode('I', 'I', 'LEAF', 0, 1, [], 'AND'),
+        ], 'AND'),
         createSearchNode('D', 'D', 'OR', 4, 1, [
             createSearchNode('J', 'J', 'LEAF', 0, 1, []),
-        ]),
+        ], 'AND'),
     ]);
+
+    rootNode.edgeRelation = 'ROOT';
+
+    return rootNode;
 }
 
 export function cloneTree(node) {
@@ -142,11 +157,13 @@ export function cloneTree(node) {
         beta: node.beta,
         heuristic: getNumberOrDefault(node.heuristic, 0),
         edgeCost: getNumberOrDefault(node.edgeCost, 1),
+        edgeRelation: node.edgeRelation || 'OR',
         pathCost: node.pathCost === undefined ? null : node.pathCost,
         totalCost: node.totalCost === undefined ? null : node.totalCost,
         solved: node.solved === true,
         expanded: node.expanded === true,
         parentId: node.parentId || null,
+        selectedChildIds: node.selectedChildIds || [],
         children: clonedChildren,
         visited: node.visited,
         pruned: node.pruned,
@@ -191,11 +208,13 @@ export function assignTreeTypes(node, currentDepth, rootNodeType) {
         beta: node.beta,
         heuristic: getNumberOrDefault(node.heuristic, 0),
         edgeCost: getNumberOrDefault(node.edgeCost, currentDepth === 0 ? 0 : 1),
+        edgeRelation: node.edgeRelation || 'OR',
         pathCost: node.pathCost === undefined ? null : node.pathCost,
         totalCost: node.totalCost === undefined ? null : node.totalCost,
         solved: node.solved === true,
         expanded: node.expanded === true,
         parentId: node.parentId || null,
+        selectedChildIds: node.selectedChildIds || [],
         children: typedChildren,
         visited: node.visited,
         pruned: node.pruned,
@@ -230,11 +249,13 @@ export function clearSimulationFromTree(node) {
         beta: null,
         heuristic: getNumberOrDefault(node.heuristic, 0),
         edgeCost: getNumberOrDefault(node.edgeCost, 1),
+        edgeRelation: node.edgeRelation || 'OR',
         pathCost: null,
         totalCost: null,
         solved: false,
         expanded: false,
         parentId: null,
+        selectedChildIds: [],
         children: cleanChildren,
         visited: false,
         pruned: false,
@@ -263,11 +284,13 @@ export function clearSearchSimulationFromTree(node) {
         beta: null,
         heuristic: getNumberOrDefault(node.heuristic, 0),
         edgeCost: getNumberOrDefault(node.edgeCost, 1),
+        edgeRelation: node.edgeRelation || 'OR',
         pathCost: null,
         totalCost: null,
         solved: false,
         expanded: false,
         parentId: null,
+        selectedChildIds: [],
         children: cleanChildren,
         visited: false,
         pruned: false,
@@ -962,6 +985,7 @@ export function createAOStarSteps(sourceTree) {
 
         if (currentNode.type === 'AND') {
             let totalValue = 0;
+            const selectedChildIds = [];
 
             for (
                 let childIndex = 0;
@@ -969,10 +993,12 @@ export function createAOStarSteps(sourceTree) {
                 childIndex = childIndex + 1
             ) {
                 totalValue = totalValue + childValues[childIndex].totalChildValue;
+                selectedChildIds.push(childValues[childIndex].childNode.id);
             }
 
             currentNode.value = totalValue;
             currentNode.solved = true;
+            currentNode.selectedChildIds = selectedChildIds;
 
             recordStep(
                 workingTree,
@@ -988,22 +1014,67 @@ export function createAOStarSteps(sourceTree) {
             return currentNode.value;
         }
 
-        let bestChildValue = Infinity;
-        let bestChildNode = null;
+        const optionValues = [];
+        const andGroupChildren = [];
 
         for (
             let childIndex = 0;
             childIndex < childValues.length;
             childIndex = childIndex + 1
         ) {
-            if (childValues[childIndex].totalChildValue < bestChildValue) {
-                bestChildValue = childValues[childIndex].totalChildValue;
-                bestChildNode = childValues[childIndex].childNode;
+            if (childValues[childIndex].childNode.edgeRelation === 'AND') {
+                andGroupChildren.push(childValues[childIndex]);
+            } else {
+                optionValues.push({
+                    optionName: childValues[childIndex].childNode.label,
+                    optionValue: childValues[childIndex].totalChildValue,
+                    optionChildIds: [childValues[childIndex].childNode.id],
+                });
             }
         }
 
-        currentNode.value = bestChildValue;
+        if (andGroupChildren.length > 0) {
+            let andGroupValue = 0;
+            const andGroupNames = [];
+            const andGroupChildIds = [];
+
+            for (
+                let childIndex = 0;
+                childIndex < andGroupChildren.length;
+                childIndex = childIndex + 1
+            ) {
+                andGroupValue =
+                    andGroupValue + andGroupChildren[childIndex].totalChildValue;
+                andGroupNames.push(andGroupChildren[childIndex].childNode.label);
+                andGroupChildIds.push(andGroupChildren[childIndex].childNode.id);
+            }
+
+            optionValues.push({
+                optionName: andGroupNames.join(' + '),
+                optionValue: andGroupValue,
+                optionChildIds: andGroupChildIds,
+            });
+        }
+
+        let bestOptionValue = Infinity;
+        let bestOptionName = '';
+        let bestOptionChildIds = [];
+
+        for (
+            let optionIndex = 0;
+            optionIndex < optionValues.length;
+            optionIndex = optionIndex + 1
+        ) {
+            if (optionValues[optionIndex].optionValue < bestOptionValue) {
+                bestOptionValue = optionValues[optionIndex].optionValue;
+                bestOptionName = optionValues[optionIndex].optionName;
+                bestOptionChildIds = optionValues[optionIndex].optionChildIds;
+            }
+        }
+
+        currentNode.value = bestOptionValue;
         currentNode.solved = true;
+        currentNode.selectedChildIds = bestOptionChildIds;
 
         recordStep(
             workingTree,
@@ -1011,11 +1082,11 @@ export function createAOStarSteps(sourceTree) {
             steps,
             'OR node ' +
                 currentNode.label +
-                ' chooses ' +
-                bestChildNode.label +
+                ' chooses option ' +
+                bestOptionName +
                 ' with value ' +
-                bestChildValue,
-            'At an OR node, only one branch is needed, so AO* chooses the minimum-cost child.'
+                bestOptionValue,
+            'At an OR node, AO* chooses the lowest-cost option. An option can be one OR child or a grouped AND set of children.'
         );
 
         return currentNode.value;
@@ -1087,6 +1158,22 @@ function markAOStarBestPath(node) {
             childIndex = childIndex + 1
         ) {
             markAOStarBestPath(node.children[childIndex]);
+        }
+
+        return;
+    }
+
+    const selectedChildIds = node.selectedChildIds || [];
+
+    if (selectedChildIds.length > 0) {
+        for (
+            let childIndex = 0;
+            childIndex < node.children.length;
+            childIndex = childIndex + 1
+        ) {
+            if (selectedChildIds.indexOf(node.children[childIndex].id) !== -1) {
+                markAOStarBestPath(node.children[childIndex]);
+            }
         }
 
         return;

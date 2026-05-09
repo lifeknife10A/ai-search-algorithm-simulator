@@ -507,6 +507,17 @@ function App() {
         applyEditedTree(editedTree, selectedNode.id, rootNodeType);
     }
 
+    function handleAOEdgeRelationChange(event) {
+        const editedTree = clearSearchSimulationFromTree(cloneTree(tree));
+        const editedNode = findNodeById(editedTree, selectedNode.id);
+
+        if (editedNode !== null) {
+            editedNode.edgeRelation = event.target.value;
+        }
+
+        applyEditedTree(editedTree, selectedNode.id, rootNodeType);
+    }
+
     function handleAddChild() {
         let editedTree = clearSearchSimulationFromTree(cloneTree(tree));
 
@@ -611,6 +622,7 @@ function App() {
                     onHeuristicChange={handleHeuristicChange}
                     onEdgeCostChange={handleEdgeCostChange}
                     onSearchNodeTypeChange={handleSearchNodeTypeChange}
+                    onAOEdgeRelationChange={handleAOEdgeRelationChange}
                     onAddChild={handleAddChild}
                     onRemoveSelectedNode={handleRemoveSelectedNode}
                     onToggleDarkMode={handleToggleDarkMode}
@@ -924,6 +936,11 @@ function ControlPanel(props) {
                     <>
                         <span>h(n): {selectedNode.heuristic}</span>
                         <span>Edge cost: {selectedNode.edgeCost}</span>
+                        {!props.selectedIsRoot && props.stepAlgorithm === 'AO_STAR' ? (
+                            <span>
+                                From parent: {selectedNode.edgeRelation || 'OR'}
+                            </span>
+                        ) : null}
                     </>
                 ) : null}
             </div>
@@ -958,6 +975,22 @@ function ControlPanel(props) {
                                 <option value="GOAL">GOAL</option>
                             </>
                         )}
+                    </select>
+                </div>
+            ) : null}
+
+            {searchMode &&
+            props.stepAlgorithm === 'AO_STAR' &&
+            !props.selectedIsRoot ? (
+                <div className="control-group">
+                    <label htmlFor="ao-edge-relation">Connection From Parent</label>
+                    <select
+                        id="ao-edge-relation"
+                        value={selectedNode.edgeRelation || 'OR'}
+                        onChange={props.onAOEdgeRelationChange}
+                    >
+                        <option value="OR">OR option</option>
+                        <option value="AND">AND group</option>
                     </select>
                 </div>
             ) : null}
@@ -1221,40 +1254,86 @@ function collectEdgeElements(node, layout, edgeElements, searchMode, stepAlgorit
         collectEdgeElements(childNode, layout, edgeElements, searchMode, stepAlgorithm);
     }
 
-    if (
-        searchMode &&
-        stepAlgorithm === 'AO_STAR' &&
-        node.type === 'AND' &&
-        node.children.length > 1
-    ) {
-        const firstChildCenter = getSearchNodeCenter(
-            layout.positions[node.children[0].id]
-        );
-        const lastChildCenter = getSearchNodeCenter(
-            layout.positions[node.children[node.children.length - 1].id]
-        );
-        const arcY = parentCenter.yCoordinate + 58;
+    if (searchMode && stepAlgorithm === 'AO_STAR') {
+        const andChildren = [];
 
-        edgeElements.push(
-            <path
-                key={node.id + '-and-arc'}
-                className="and-arc"
-                d={
-                    'M ' +
-                    firstChildCenter.xCoordinate +
-                    ' ' +
-                    arcY +
-                    ' Q ' +
-                    parentCenter.xCoordinate +
-                    ' ' +
-                    (arcY + 28) +
-                    ' ' +
-                    lastChildCenter.xCoordinate +
-                    ' ' +
-                    arcY
+        for (
+            let childIndex = 0;
+            childIndex < node.children.length;
+            childIndex = childIndex + 1
+        ) {
+            const childNode = node.children[childIndex];
+
+            if (node.type === 'AND' || childNode.edgeRelation === 'AND') {
+                andChildren.push(childNode);
+            }
+        }
+
+        if (andChildren.length > 1) {
+            const firstChildCenter = getSearchNodeCenter(
+                layout.positions[andChildren[0].id]
+            );
+            let leftChildCenter = firstChildCenter;
+            let rightChildCenter = firstChildCenter;
+            const andChildIds = [];
+
+            for (
+                let childIndex = 0;
+                childIndex < andChildren.length;
+                childIndex = childIndex + 1
+            ) {
+                const childCenter = getSearchNodeCenter(
+                    layout.positions[andChildren[childIndex].id]
+                );
+
+                andChildIds.push(andChildren[childIndex].id);
+
+                if (childCenter.xCoordinate < leftChildCenter.xCoordinate) {
+                    leftChildCenter = childCenter;
                 }
-            />
-        );
+
+                if (childCenter.xCoordinate > rightChildCenter.xCoordinate) {
+                    rightChildCenter = childCenter;
+                }
+            }
+
+            const arcY = parentCenter.yCoordinate + 58;
+            const labelX =
+                (leftChildCenter.xCoordinate + rightChildCenter.xCoordinate) / 2;
+            const arcKey = node.id + '-and-arc-' + andChildIds.join('-');
+
+            edgeElements.push(
+                <path
+                    key={arcKey}
+                    className="and-arc"
+                    d={
+                        'M ' +
+                        leftChildCenter.xCoordinate +
+                        ' ' +
+                        arcY +
+                        ' Q ' +
+                        parentCenter.xCoordinate +
+                        ' ' +
+                        (arcY + 28) +
+                        ' ' +
+                        rightChildCenter.xCoordinate +
+                        ' ' +
+                        arcY
+                    }
+                />
+            );
+
+            edgeElements.push(
+                <text
+                    key={arcKey + '-label'}
+                    className="and-arc-label"
+                    x={labelX}
+                    y={arcY + 35}
+                >
+                    AND
+                </text>
+            );
+        }
     }
 }
 
