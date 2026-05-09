@@ -30,7 +30,11 @@ poster-app/
 - Edit node labels and leaf utility values
 - Run normal Minimax
 - Run Alpha-Beta Pruning
-- Step forward through either algorithm
+- Run A* search on weighted heuristic graphs
+- Run AO* search on weighted AND-OR graphs
+- Generate an AO* exam-style question graph
+- Generate an A* sample graph
+- Step forward and backward through each algorithm
 - Reset the simulation without deleting the tree
 - Show node name, type, minimax value, alpha, beta, visited state, and pruned state
 - Highlight the current node, pruned branches, final selected path, and root answer
@@ -41,6 +45,7 @@ poster-app/
 - Autosave the tree and current state in the browser
 - Warn before leaving the page when Safe Leave is enabled
 - Show an execution log and simple Exam Mode explanation for each step
+- Edit search graph heuristic values and edge costs
 
 ## Run Locally
 

@@ -372,6 +372,14 @@ button {
     background: #5f478f;
 }
 
+.search-button {
+    background: #2f855a;
+}
+
+.search-button:hover {
+    background: #276749;
+}
+
 .secondary-button,
 .toggle-button {
     background: var(--panel-background);
@@ -509,6 +517,50 @@ button {
     font-weight: 800;
 }
 
+.question-strip {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    display: grid;
+    grid-template-columns: 54px 92px minmax(280px, 1fr) 48px;
+    align-items: stretch;
+    max-width: 900px;
+    margin: 0 0 14px;
+    overflow: hidden;
+    border: 2px solid var(--main-text);
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.86);
+    color: #111827;
+    box-shadow: 0 10px 22px var(--shadow-color);
+    backdrop-filter: blur(8px);
+}
+
+.dark-mode .question-strip {
+    background: rgba(238, 244, 251, 0.92);
+    color: #111827;
+}
+
+.question-strip span,
+.question-strip strong {
+    min-height: 54px;
+    display: flex;
+    align-items: center;
+    padding: 10px 12px;
+    border-right: 2px solid #111827;
+    font-size: 14px;
+}
+
+.question-strip strong {
+    font-size: 16px;
+    font-weight: 800;
+}
+
+.question-strip span:last-child {
+    justify-content: center;
+    border-right: 0;
+    font-weight: 800;
+}
+
 .tree-svg {
     display: block;
     filter: drop-shadow(0 18px 26px rgba(15, 23, 32, 0.08));
@@ -541,6 +593,25 @@ button {
     animation:
         edgeFadeIn 0.32s ease-out both,
         dashFlow 1.4s linear infinite;
+}
+
+.edge-cost-label {
+    fill: var(--main-text);
+    paint-order: stroke;
+    stroke: var(--canvas-background);
+    stroke-width: 5px;
+    stroke-linejoin: round;
+    font-size: 16px;
+    font-weight: 900;
+    text-anchor: middle;
+}
+
+.and-arc {
+    fill: none;
+    stroke: var(--purple-color);
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-dasharray: 6 6;
 }
 
 .node-shell {
@@ -720,6 +791,91 @@ button {
     transform: rotate(-32deg);
     transform-origin: left center;
     animation: strikeGrow 0.28s ease-out both;
+}
+
+.search-node {
+    cursor: pointer;
+}
+
+.search-node circle {
+    fill: var(--node-background);
+    stroke: var(--main-text);
+    stroke-width: 3;
+    transition:
+        fill 0.18s ease,
+        stroke 0.18s ease,
+        filter 0.18s ease,
+        transform 0.18s ease;
+}
+
+.search-node:hover circle {
+    stroke: var(--primary-color);
+    filter: drop-shadow(0 8px 12px var(--shadow-color));
+    transform: scale(1.04);
+    transform-box: fill-box;
+    transform-origin: center;
+}
+
+.root-search-node circle {
+    stroke: var(--primary-color);
+}
+
+.visited-search-node circle {
+    fill: rgba(56, 163, 197, 0.12);
+}
+
+.expanded-search-node circle {
+    stroke: #5b9ac2;
+}
+
+.current-search-node circle {
+    stroke: var(--amber-color);
+    filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.42));
+}
+
+.best-search-node circle {
+    stroke: var(--green-color);
+    stroke-width: 4;
+    filter: drop-shadow(0 0 8px rgba(31, 157, 97, 0.5));
+}
+
+.solved-search-node circle {
+    fill: rgba(31, 157, 97, 0.12);
+}
+
+.selected-search-node circle {
+    stroke-width: 5;
+}
+
+.search-node-label,
+.search-node-heuristic,
+.search-node-cost,
+.search-node-type {
+    fill: var(--main-text);
+    text-anchor: middle;
+    pointer-events: none;
+}
+
+.search-node-label {
+    font-size: 18px;
+    font-weight: 900;
+}
+
+.search-node-heuristic {
+    font-size: 15px;
+    font-weight: 900;
+}
+
+.search-node-cost {
+    fill: var(--muted-text);
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.search-node-type {
+    fill: var(--primary-color);
+    font-size: 11px;
+    font-weight: 900;
 }
 
 .floating-step-panel {

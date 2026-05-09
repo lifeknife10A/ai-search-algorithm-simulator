@@ -4,11 +4,18 @@ import {
     assignTreeTypes,
     calculateTreeLayout,
     clearSimulationFromTree,
+    clearSearchSimulationFromTree,
+    createAOStarExampleTree,
+    createAOStarSteps,
+    createAStarExampleTree,
+    createAStarSteps,
     cloneTree,
     createAlphaBetaSteps,
     createExampleTree,
     createMinimaxSteps,
+    createSearchNode,
     createSingleRootTree,
+    createSingleSearchRootTree,
     createTreeNode,
     findNodeById,
     findParentNodeById,
@@ -65,6 +72,26 @@ function loadApplicationState() {
     } catch (error) {
         return {};
     }
+}
+
+function isSearchAlgorithm(algorithmName) {
+    return algorithmName === 'A_STAR' || algorithmName === 'AO_STAR';
+}
+
+function getAlgorithmLabel(algorithmName) {
+    if (algorithmName === 'MINIMAX') {
+        return 'Minimax';
+    }
+
+    if (algorithmName === 'ALPHA_BETA') {
+        return 'Alpha-Beta';
+    }
+
+    if (algorithmName === 'A_STAR') {
+        return 'A*';
+    }
+
+    return 'AO*';
 }
 
 function App() {
@@ -237,8 +264,12 @@ function App() {
     }
 
     function applyEditedTree(editedTree, nextSelectedNodeId, nextRootNodeType) {
-        const typedTree = assignTreeTypes(editedTree, 0, nextRootNodeType);
-        const cleanTree = clearSimulationFromTree(typedTree);
+        let cleanTree = clearSearchSimulationFromTree(editedTree);
+
+        if (!isSearchAlgorithm(stepAlgorithm)) {
+            const typedTree = assignTreeTypes(editedTree, 0, nextRootNodeType);
+            cleanTree = clearSimulationFromTree(typedTree);
+        }
 
         setTree(cleanTree);
         setSelectedNodeId(nextSelectedNodeId);
@@ -246,6 +277,7 @@ function App() {
     }
 
     function handleGenerateExampleTree() {
+        setStepAlgorithm('ALPHA_BETA');
         setRootNodeType('MAX');
         setTree(createExampleTree());
         setSelectedNodeId('A');
@@ -253,17 +285,42 @@ function App() {
         clearPlayback();
     }
 
+    function handleGenerateAStarTree() {
+        setStepAlgorithm('A_STAR');
+        setTree(createAStarExampleTree());
+        setSelectedNodeId('A');
+        setFocusMode(false);
+        clearPlayback();
+    }
+
+    function handleGenerateAOStarTree() {
+        setStepAlgorithm('AO_STAR');
+        setTree(createAOStarExampleTree());
+        setSelectedNodeId('A');
+        setFocusMode(false);
+        clearPlayback();
+    }
+
     function handleClearTree() {
-        setRootNodeType('MAX');
-        setTree(createSingleRootTree());
+        if (isSearchAlgorithm(stepAlgorithm)) {
+            setTree(createSingleSearchRootTree());
+        } else {
+            setRootNodeType('MAX');
+            setTree(createSingleRootTree());
+        }
+
         setSelectedNodeId('A');
         setFocusMode(false);
         clearPlayback();
     }
 
     function handleResetSimulation() {
-        const typedTree = assignTreeTypes(tree, 0, rootNodeType);
-        const cleanTree = clearSimulationFromTree(typedTree);
+        let cleanTree = clearSearchSimulationFromTree(tree);
+
+        if (!isSearchAlgorithm(stepAlgorithm)) {
+            const typedTree = assignTreeTypes(tree, 0, rootNodeType);
+            cleanTree = clearSimulationFromTree(typedTree);
+        }
 
         setTree(cleanTree);
         setFocusMode(false);
@@ -281,14 +338,33 @@ function App() {
     }
 
     function handleStepAlgorithmChange(event) {
-        setStepAlgorithm(event.target.value);
+        const nextStepAlgorithm = event.target.value;
+
+        setStepAlgorithm(nextStepAlgorithm);
         clearPlayback();
+    }
+
+    function createStepsForCurrentAlgorithm() {
+        if (stepAlgorithm === 'MINIMAX') {
+            return createMinimaxSteps(tree, rootNodeType);
+        }
+
+        if (stepAlgorithm === 'ALPHA_BETA') {
+            return createAlphaBetaSteps(tree, rootNodeType);
+        }
+
+        if (stepAlgorithm === 'A_STAR') {
+            return createAStarSteps(tree);
+        }
+
+        return createAOStarSteps(tree);
     }
 
     function handleRunMinimax() {
         const newSteps = createMinimaxSteps(tree, rootNodeType);
         const lastStepIndex = newSteps.length - 1;
 
+        setStepAlgorithm('MINIMAX');
         setSteps(newSteps);
         setCurrentStepIndex(lastStepIndex);
         setTree(newSteps[lastStepIndex].tree);
@@ -300,6 +376,31 @@ function App() {
         const newSteps = createAlphaBetaSteps(tree, rootNodeType);
         const lastStepIndex = newSteps.length - 1;
 
+        setStepAlgorithm('ALPHA_BETA');
+        setSteps(newSteps);
+        setCurrentStepIndex(lastStepIndex);
+        setTree(newSteps[lastStepIndex].tree);
+        setFocusMode(false);
+        setExamPanelOpen(true);
+    }
+
+    function handleRunAStar() {
+        const newSteps = createAStarSteps(tree);
+        const lastStepIndex = newSteps.length - 1;
+
+        setStepAlgorithm('A_STAR');
+        setSteps(newSteps);
+        setCurrentStepIndex(lastStepIndex);
+        setTree(newSteps[lastStepIndex].tree);
+        setFocusMode(false);
+        setExamPanelOpen(true);
+    }
+
+    function handleRunAOStar() {
+        const newSteps = createAOStarSteps(tree);
+        const lastStepIndex = newSteps.length - 1;
+
+        setStepAlgorithm('AO_STAR');
         setSteps(newSteps);
         setCurrentStepIndex(lastStepIndex);
         setTree(newSteps[lastStepIndex].tree);
@@ -312,11 +413,7 @@ function App() {
         let nextStepIndex = currentStepIndex + 1;
 
         if (steps.length === 0) {
-            if (stepAlgorithm === 'MINIMAX') {
-                nextSteps = createMinimaxSteps(tree, rootNodeType);
-            } else {
-                nextSteps = createAlphaBetaSteps(tree, rootNodeType);
-            }
+            nextSteps = createStepsForCurrentAlgorithm();
 
             nextStepIndex = 0;
             setSteps(nextSteps);
@@ -346,9 +443,14 @@ function App() {
     }
 
     function handleLabelChange(event) {
-        const editedTree = clearSimulationFromTree(
-            assignTreeTypes(cloneTree(tree), 0, rootNodeType)
-        );
+        let editedTree = clearSearchSimulationFromTree(cloneTree(tree));
+
+        if (!isSearchAlgorithm(stepAlgorithm)) {
+            editedTree = clearSimulationFromTree(
+                assignTreeTypes(cloneTree(tree), 0, rootNodeType)
+            );
+        }
+
         const editedNode = findNodeById(editedTree, selectedNode.id);
         const nextLabel = event.target.value.trim();
 
@@ -372,10 +474,48 @@ function App() {
         applyEditedTree(editedTree, selectedNode.id, rootNodeType);
     }
 
+    function handleHeuristicChange(numberValue) {
+        const editedTree = clearSearchSimulationFromTree(cloneTree(tree));
+        const editedNode = findNodeById(editedTree, selectedNode.id);
+
+        if (editedNode !== null) {
+            editedNode.heuristic = numberValue;
+        }
+
+        applyEditedTree(editedTree, selectedNode.id, rootNodeType);
+    }
+
+    function handleEdgeCostChange(numberValue) {
+        const editedTree = clearSearchSimulationFromTree(cloneTree(tree));
+        const editedNode = findNodeById(editedTree, selectedNode.id);
+
+        if (editedNode !== null) {
+            editedNode.edgeCost = numberValue;
+        }
+
+        applyEditedTree(editedTree, selectedNode.id, rootNodeType);
+    }
+
+    function handleSearchNodeTypeChange(event) {
+        const editedTree = clearSearchSimulationFromTree(cloneTree(tree));
+        const editedNode = findNodeById(editedTree, selectedNode.id);
+
+        if (editedNode !== null) {
+            editedNode.type = event.target.value;
+        }
+
+        applyEditedTree(editedTree, selectedNode.id, rootNodeType);
+    }
+
     function handleAddChild() {
-        const editedTree = clearSimulationFromTree(
-            assignTreeTypes(cloneTree(tree), 0, rootNodeType)
-        );
+        let editedTree = clearSearchSimulationFromTree(cloneTree(tree));
+
+        if (!isSearchAlgorithm(stepAlgorithm)) {
+            editedTree = clearSimulationFromTree(
+                assignTreeTypes(cloneTree(tree), 0, rootNodeType)
+            );
+        }
+
         const parentNode = findNodeById(editedTree, selectedNode.id);
 
         if (parentNode === null) {
@@ -383,7 +523,22 @@ function App() {
         }
 
         const newNodeId = getNextNodeId(editedTree);
-        const newChild = createTreeNode(newNodeId, newNodeId, 'LEAF', 0, []);
+        let newChild = createTreeNode(newNodeId, newNodeId, 'LEAF', 0, []);
+
+        if (isSearchAlgorithm(stepAlgorithm)) {
+            if (parentNode.type === 'LEAF' || parentNode.type === 'GOAL') {
+                parentNode.type = stepAlgorithm === 'AO_STAR' ? 'OR' : 'NODE';
+            }
+
+            newChild = createSearchNode(
+                newNodeId,
+                newNodeId,
+                stepAlgorithm === 'AO_STAR' ? 'LEAF' : 'NODE',
+                0,
+                1,
+                []
+            );
+        }
 
         parentNode.children.push(newChild);
         applyEditedTree(editedTree, newNodeId, rootNodeType);
@@ -396,9 +551,13 @@ function App() {
 
         const parentNode = findParentNodeById(tree, selectedNode.id);
         const parentNodeId = parentNode === null ? tree.id : parentNode.id;
-        const editedTree = clearSimulationFromTree(
-            assignTreeTypes(cloneTree(tree), 0, rootNodeType)
-        );
+        let editedTree = clearSearchSimulationFromTree(cloneTree(tree));
+
+        if (!isSearchAlgorithm(stepAlgorithm)) {
+            editedTree = clearSimulationFromTree(
+                assignTreeTypes(cloneTree(tree), 0, rootNodeType)
+            );
+        }
 
         removeNodeById(editedTree, selectedNode.id);
         applyEditedTree(editedTree, parentNodeId, rootNodeType);
@@ -437,14 +596,21 @@ function App() {
                     darkMode={darkMode}
                     safetyMode={safetyMode}
                     onGenerateExampleTree={handleGenerateExampleTree}
+                    onGenerateAStarTree={handleGenerateAStarTree}
+                    onGenerateAOStarTree={handleGenerateAOStarTree}
                     onClearTree={handleClearTree}
                     onRunMinimax={handleRunMinimax}
                     onRunAlphaBeta={handleRunAlphaBeta}
+                    onRunAStar={handleRunAStar}
+                    onRunAOStar={handleRunAOStar}
                     onResetSimulation={handleResetSimulation}
                     onRootTypeChange={handleRootTypeChange}
                     onStepAlgorithmChange={handleStepAlgorithmChange}
                     onLabelChange={handleLabelChange}
                     onUtilityChange={handleUtilityChange}
+                    onHeuristicChange={handleHeuristicChange}
+                    onEdgeCostChange={handleEdgeCostChange}
+                    onSearchNodeTypeChange={handleSearchNodeTypeChange}
                     onAddChild={handleAddChild}
                     onRemoveSelectedNode={handleRemoveSelectedNode}
                     onToggleDarkMode={handleToggleDarkMode}
@@ -458,8 +624,8 @@ function App() {
                 {!focusMode ? (
                     <header className="simulator-header">
                         <div>
-                            <p className="eyebrow">Minimax Simulator</p>
-                            <h1>Alpha-Beta Pruning Game Tree</h1>
+                            <p className="eyebrow">AI Search Simulator</p>
+                            <h1>{getAlgorithmLabel(stepAlgorithm)} Graph</h1>
                         </div>
                         <div className="header-actions">
                             <button
@@ -499,6 +665,7 @@ function App() {
                     focusMode={focusMode}
                     finalAnswer={finalAnswer}
                     safetyMode={safetyMode}
+                    rootLabel={tree.label}
                     onSelectNode={setSelectedNodeId}
                     onStepForward={handleStepForward}
                     onStepBack={handleStepBack}
@@ -519,18 +686,29 @@ function App() {
 
 function ControlPanel(props) {
     const selectedNode = props.selectedNode;
+    const searchMode = isSearchAlgorithm(props.stepAlgorithm);
     const leafInputDisabled = selectedNode.type !== 'LEAF';
     const [utilityInputText, setUtilityInputText] = useState('');
+    const [heuristicInputText, setHeuristicInputText] = useState('');
+    const [edgeCostInputText, setEdgeCostInputText] = useState('');
 
     useEffect(
         function syncUtilityInputText() {
-            if (leafInputDisabled) {
+            if (leafInputDisabled || searchMode) {
                 setUtilityInputText('');
             } else {
                 setUtilityInputText(String(selectedNode.value));
             }
         },
-        [selectedNode.id, selectedNode.value, leafInputDisabled]
+        [selectedNode.id, selectedNode.value, leafInputDisabled, searchMode]
+    );
+
+    useEffect(
+        function syncSearchInputText() {
+            setHeuristicInputText(String(selectedNode.heuristic || 0));
+            setEdgeCostInputText(String(selectedNode.edgeCost || 0));
+        },
+        [selectedNode.id, selectedNode.heuristic, selectedNode.edgeCost]
     );
 
     function handleUtilityInputChange(event) {
@@ -547,6 +725,37 @@ function ControlPanel(props) {
             nextUtilityInputText !== '-'
         ) {
             props.onUtilityChange(Number(nextUtilityInputText));
+        }
+    }
+
+    function handleHeuristicInputChange(event) {
+        const nextHeuristicInputText = event.target.value;
+
+        if (!/^-?\d*$/.test(nextHeuristicInputText)) {
+            return;
+        }
+
+        setHeuristicInputText(nextHeuristicInputText);
+
+        if (
+            nextHeuristicInputText !== '' &&
+            nextHeuristicInputText !== '-'
+        ) {
+            props.onHeuristicChange(Number(nextHeuristicInputText));
+        }
+    }
+
+    function handleEdgeCostInputChange(event) {
+        const nextEdgeCostInputText = event.target.value;
+
+        if (!/^\d*$/.test(nextEdgeCostInputText)) {
+            return;
+        }
+
+        setEdgeCostInputText(nextEdgeCostInputText);
+
+        if (nextEdgeCostInputText !== '') {
+            props.onEdgeCostChange(Number(nextEdgeCostInputText));
         }
     }
 
@@ -591,6 +800,24 @@ function ControlPanel(props) {
                 <button
                     type="button"
                     className="secondary-button"
+                    onClick={props.onGenerateAOStarTree}
+                    title="Generate AO* Exam Graph"
+                >
+                    <span className="button-icon">AO</span>
+                    AO* Exam Graph
+                </button>
+                <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={props.onGenerateAStarTree}
+                    title="Generate A* Example Graph"
+                >
+                    <span className="button-icon">A*</span>
+                    A* Example Graph
+                </button>
+                <button
+                    type="button"
+                    className="secondary-button"
                     onClick={props.onClearTree}
                     title="Start Manual Tree"
                 >
@@ -599,7 +826,8 @@ function ControlPanel(props) {
                 </button>
             </div>
 
-            <div className="control-group">
+            {!searchMode ? (
+                <div className="control-group">
                 <label htmlFor="root-node-type">Root Type</label>
                 <select
                     id="root-node-type"
@@ -610,6 +838,7 @@ function ControlPanel(props) {
                     <option value="MIN">MIN</option>
                 </select>
             </div>
+            ) : null}
 
             <div className="control-group">
                 <button
@@ -630,6 +859,24 @@ function ControlPanel(props) {
                     <span className="button-icon">αβ</span>
                     Run Alpha-Beta
                 </button>
+                <button
+                    type="button"
+                    className="primary-button search-button"
+                    onClick={props.onRunAStar}
+                    title="Run A*"
+                >
+                    <span className="button-icon">A*</span>
+                    Run A*
+                </button>
+                <button
+                    type="button"
+                    className="primary-button search-button"
+                    onClick={props.onRunAOStar}
+                    title="Run AO*"
+                >
+                    <span className="button-icon">AO</span>
+                    Run AO*
+                </button>
             </div>
 
             <div className="control-group">
@@ -641,6 +888,8 @@ function ControlPanel(props) {
                 >
                     <option value="ALPHA_BETA">Alpha-Beta</option>
                     <option value="MINIMAX">Minimax</option>
+                    <option value="A_STAR">A*</option>
+                    <option value="AO_STAR">AO*</option>
                 </select>
                 <button
                     type="button"
@@ -671,6 +920,12 @@ function ControlPanel(props) {
                 <strong>Node {selectedNode.label}</strong>
                 <span>ID: {selectedNode.id}</span>
                 <span>Type: {selectedNode.type}</span>
+                {searchMode ? (
+                    <>
+                        <span>h(n): {selectedNode.heuristic}</span>
+                        <span>Edge cost: {selectedNode.edgeCost}</span>
+                    </>
+                ) : null}
             </div>
 
             <div className="control-group">
@@ -683,7 +938,61 @@ function ControlPanel(props) {
                 />
             </div>
 
-            <div className="control-group">
+            {searchMode ? (
+                <div className="control-group">
+                    <label htmlFor="search-node-type">Search Node Type</label>
+                    <select
+                        id="search-node-type"
+                        value={selectedNode.type}
+                        onChange={props.onSearchNodeTypeChange}
+                    >
+                        {props.stepAlgorithm === 'AO_STAR' ? (
+                            <>
+                                <option value="OR">OR</option>
+                                <option value="AND">AND</option>
+                                <option value="LEAF">LEAF</option>
+                            </>
+                        ) : (
+                            <>
+                                <option value="NODE">NODE</option>
+                                <option value="GOAL">GOAL</option>
+                            </>
+                        )}
+                    </select>
+                </div>
+            ) : null}
+
+            {searchMode ? (
+                <div className="control-group">
+                    <label htmlFor="node-heuristic">Heuristic h(n)</label>
+                    <input
+                        id="node-heuristic"
+                        type="text"
+                        inputMode="numeric"
+                        value={heuristicInputText}
+                        onChange={handleHeuristicInputChange}
+                        placeholder="Example: 5"
+                    />
+                </div>
+            ) : null}
+
+            {searchMode ? (
+                <div className="control-group">
+                    <label htmlFor="edge-cost">Edge Cost From Parent</label>
+                    <input
+                        id="edge-cost"
+                        type="text"
+                        inputMode="numeric"
+                        value={edgeCostInputText}
+                        onChange={handleEdgeCostInputChange}
+                        disabled={props.selectedIsRoot}
+                        placeholder="Example: 1"
+                    />
+                </div>
+            ) : null}
+
+            {!searchMode ? (
+                <div className="control-group">
                 <label htmlFor="leaf-utility">Leaf Utility</label>
                 <input
                     id="leaf-utility"
@@ -695,6 +1004,7 @@ function ControlPanel(props) {
                     placeholder="Example: -5"
                 />
             </div>
+            ) : null}
 
             <div className="control-group">
                 <button
@@ -734,27 +1044,46 @@ function TreeCanvas(props) {
     const layout = calculateTreeLayout(props.tree);
     const edgeElements = [];
     const nodeElements = [];
+    const searchMode = isSearchAlgorithm(props.stepAlgorithm);
     const progressText =
         props.stepsLength === 0
             ? 'Ready'
             : 'Step ' + (props.currentStepIndex + 1) + ' / ' + props.stepsLength;
 
-    collectEdgeElements(props.tree, layout, edgeElements);
+    collectEdgeElements(props.tree, layout, edgeElements, searchMode, props.stepAlgorithm);
     collectNodeElements(
         props.tree,
         props.tree.id,
         props.selectedNodeId,
         props.onSelectNode,
         layout,
-        nodeElements
+        nodeElements,
+        searchMode
     );
 
     return (
         <div className="tree-canvas">
+            {searchMode ? (
+                <div className="question-strip">
+                    <span>Q3</span>
+                    <span>CO1 ; BL4</span>
+                    <strong>
+                        {props.stepAlgorithm === 'AO_STAR'
+                            ? 'Find the value of node ' +
+                              props.rootLabel +
+                              ' using AO* search algorithm.'
+                            : 'Find the least-cost path from node ' +
+                              props.rootLabel +
+                              ' using A* search algorithm.'}
+                    </strong>
+                    <span>[10]</span>
+                </div>
+            ) : null}
+
             {!props.focusMode ? (
                 <div className="graph-status-bar">
                     <span>{props.safetyMode ? 'Autosave active' : 'Autosave only'}</span>
-                    <span>{props.stepAlgorithm === 'MINIMAX' ? 'Minimax' : 'Alpha-Beta'}</span>
+                    <span>{getAlgorithmLabel(props.stepAlgorithm)}</span>
                     <span>{progressText}</span>
                 </div>
             ) : null}
@@ -830,8 +1159,14 @@ function TreeCanvas(props) {
     );
 }
 
-function collectEdgeElements(node, layout, edgeElements) {
+function collectEdgeElements(node, layout, edgeElements, searchMode, stepAlgorithm) {
     const parentPosition = layout.positions[node.id];
+    const parentCenter = searchMode
+        ? getSearchNodeCenter(parentPosition)
+        : {
+              xCoordinate: parentPosition.xCoordinate,
+              yCoordinate: parentPosition.yCoordinate + nodeCardHeight,
+          };
 
     for (
         let childIndex = 0;
@@ -840,6 +1175,12 @@ function collectEdgeElements(node, layout, edgeElements) {
     ) {
         const childNode = node.children[childIndex];
         const childPosition = layout.positions[childNode.id];
+        const childCenter = searchMode
+            ? getSearchNodeCenter(childPosition)
+            : {
+                  xCoordinate: childPosition.xCoordinate,
+                  yCoordinate: childPosition.yCoordinate,
+              };
         let edgeClassName = 'tree-edge';
 
         if (childNode.pruned) {
@@ -854,14 +1195,66 @@ function collectEdgeElements(node, layout, edgeElements) {
             <line
                 key={node.id + '-' + childNode.id}
                 className={edgeClassName}
-                x1={parentPosition.xCoordinate}
-                y1={parentPosition.yCoordinate + nodeCardHeight}
-                x2={childPosition.xCoordinate}
-                y2={childPosition.yCoordinate}
+                x1={parentCenter.xCoordinate}
+                y1={parentCenter.yCoordinate}
+                x2={childCenter.xCoordinate}
+                y2={childCenter.yCoordinate}
             />
         );
 
-        collectEdgeElements(childNode, layout, edgeElements);
+        if (searchMode) {
+            const costX = parentCenter.xCoordinate * 0.55 + childCenter.xCoordinate * 0.45;
+            const costY = parentCenter.yCoordinate * 0.55 + childCenter.yCoordinate * 0.45;
+
+            edgeElements.push(
+                <text
+                    key={node.id + '-' + childNode.id + '-cost'}
+                    className="edge-cost-label"
+                    x={costX}
+                    y={costY - 8}
+                >
+                    {childNode.edgeCost}
+                </text>
+            );
+        }
+
+        collectEdgeElements(childNode, layout, edgeElements, searchMode, stepAlgorithm);
+    }
+
+    if (
+        searchMode &&
+        stepAlgorithm === 'AO_STAR' &&
+        node.type === 'AND' &&
+        node.children.length > 1
+    ) {
+        const firstChildCenter = getSearchNodeCenter(
+            layout.positions[node.children[0].id]
+        );
+        const lastChildCenter = getSearchNodeCenter(
+            layout.positions[node.children[node.children.length - 1].id]
+        );
+        const arcY = parentCenter.yCoordinate + 58;
+
+        edgeElements.push(
+            <path
+                key={node.id + '-and-arc'}
+                className="and-arc"
+                d={
+                    'M ' +
+                    firstChildCenter.xCoordinate +
+                    ' ' +
+                    arcY +
+                    ' Q ' +
+                    parentCenter.xCoordinate +
+                    ' ' +
+                    (arcY + 28) +
+                    ' ' +
+                    lastChildCenter.xCoordinate +
+                    ' ' +
+                    arcY
+                }
+            />
+        );
     }
 }
 
@@ -871,7 +1264,8 @@ function collectNodeElements(
     selectedNodeId,
     onSelectNode,
     layout,
-    nodeElements
+    nodeElements,
+    searchMode
 ) {
     const nodePosition = layout.positions[node.id];
     const nodeLeft = nodePosition.xCoordinate - nodeCardWidth / 2;
@@ -880,49 +1274,107 @@ function collectNodeElements(
     const statusText = getNodeStatusText(node);
     const scoreLabel = node.type === 'LEAF' ? 'Utility' : 'Value';
 
-    nodeElements.push(
-        <foreignObject
-            key={node.id}
-            x={nodeLeft}
-            y={nodeTop}
-            width={nodeCardWidth}
-            height={nodeCardHeight}
-        >
-            <div xmlns="http://www.w3.org/1999/xhtml" className="node-shell">
-                <button
-                    type="button"
-                    className={nodeClassName}
-                    onClick={() => onSelectNode(node.id)}
+    if (searchMode) {
+        const center = getSearchNodeCenter(nodePosition);
+        const searchNodeClassName = getSearchNodeClassName(
+            node,
+            rootNodeId,
+            selectedNodeId
+        );
+
+        nodeElements.push(
+            <g
+                key={node.id}
+                className={searchNodeClassName}
+                onClick={() => onSelectNode(node.id)}
+            >
+                <circle
+                    cx={center.xCoordinate}
+                    cy={center.yCoordinate}
+                    r="29"
+                />
+                <text
+                    className="search-node-label"
+                    x={center.xCoordinate}
+                    y={center.yCoordinate + 5}
                 >
-                    <span className="node-heading">
-                        <span className="node-title">Node {node.label}</span>
-                        <span className={'type-chip ' + node.type.toLowerCase()}>
-                            {node.type}
+                    {node.label}
+                </text>
+                <text
+                    className="search-node-heuristic"
+                    x={center.xCoordinate}
+                    y={center.yCoordinate + 52}
+                >
+                    {node.value !== null
+                        ? 'v=' + formatValue(node.value)
+                        : 'h=' + formatValue(node.heuristic)}
+                </text>
+                {node.pathCost !== null || node.totalCost !== null ? (
+                    <text
+                        className="search-node-cost"
+                        x={center.xCoordinate}
+                        y={center.yCoordinate + 70}
+                    >
+                        {'g=' +
+                            formatValue(node.pathCost) +
+                            ' f=' +
+                            formatValue(node.totalCost)}
+                    </text>
+                ) : null}
+                <text
+                    className="search-node-type"
+                    x={center.xCoordinate}
+                    y={center.yCoordinate - 39}
+                >
+                    {node.type}
+                </text>
+            </g>
+        );
+    } else {
+        nodeElements.push(
+            <foreignObject
+                key={node.id}
+                x={nodeLeft}
+                y={nodeTop}
+                width={nodeCardWidth}
+                height={nodeCardHeight}
+            >
+                <div xmlns="http://www.w3.org/1999/xhtml" className="node-shell">
+                    <button
+                        type="button"
+                        className={nodeClassName}
+                        onClick={() => onSelectNode(node.id)}
+                    >
+                        <span className="node-heading">
+                            <span className="node-title">Node {node.label}</span>
+                            <span className={'type-chip ' + node.type.toLowerCase()}>
+                                {node.type}
+                            </span>
                         </span>
-                    </span>
-                    <span className="node-id">ID: {node.id}</span>
-                    <span className="node-row">
-                        <span>{scoreLabel}</span>
-                        <strong>{formatValue(node.value)}</strong>
-                    </span>
-                    <span className="node-row">
-                        <span>α</span>
-                        <strong>{formatValue(node.alpha)}</strong>
-                    </span>
-                    <span className="node-row">
-                        <span>β</span>
-                        <strong>{formatValue(node.beta)}</strong>
-                    </span>
-                    <span className="node-status">{statusText}</span>
-                    {node.id === rootNodeId && node.value !== null ? (
-                        <span className="root-badge">
-                            Answer {formatValue(node.value)}
+                        <span className="node-id">ID: {node.id}</span>
+                        <span className="node-row">
+                            <span>{scoreLabel}</span>
+                            <strong>{formatValue(node.value)}</strong>
                         </span>
-                    ) : null}
-                </button>
-            </div>
-        </foreignObject>
-    );
+                        <span className="node-row">
+                            <span>α</span>
+                            <strong>{formatValue(node.alpha)}</strong>
+                        </span>
+                        <span className="node-row">
+                            <span>β</span>
+                            <strong>{formatValue(node.beta)}</strong>
+                        </span>
+                        <span className="node-status">{statusText}</span>
+                        {node.id === rootNodeId && node.value !== null ? (
+                            <span className="root-badge">
+                                Answer {formatValue(node.value)}
+                            </span>
+                        ) : null}
+                    </button>
+                </div>
+            </foreignObject>
+        );
+    }
 
     for (
         let childIndex = 0;
@@ -935,9 +1387,17 @@ function collectNodeElements(
             selectedNodeId,
             onSelectNode,
             layout,
-            nodeElements
+            nodeElements,
+            searchMode
         );
     }
+}
+
+function getSearchNodeCenter(nodePosition) {
+    return {
+        xCoordinate: nodePosition.xCoordinate,
+        yCoordinate: nodePosition.yCoordinate + 48,
+    };
 }
 
 function getNodeClassName(node, rootNodeId, selectedNodeId) {
@@ -965,6 +1425,40 @@ function getNodeClassName(node, rootNodeId, selectedNodeId) {
 
     if (node.id === selectedNodeId) {
         className = className + ' selected-node';
+    }
+
+    return className;
+}
+
+function getSearchNodeClassName(node, rootNodeId, selectedNodeId) {
+    let className = 'search-node';
+
+    if (node.id === rootNodeId) {
+        className = className + ' root-search-node';
+    }
+
+    if (node.visited) {
+        className = className + ' visited-search-node';
+    }
+
+    if (node.expanded) {
+        className = className + ' expanded-search-node';
+    }
+
+    if (node.current) {
+        className = className + ' current-search-node';
+    }
+
+    if (node.inBestPath) {
+        className = className + ' best-search-node';
+    }
+
+    if (node.solved) {
+        className = className + ' solved-search-node';
+    }
+
+    if (node.id === selectedNodeId) {
+        className = className + ' selected-search-node';
     }
 
     return className;

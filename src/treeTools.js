@@ -15,12 +15,41 @@ export function createTreeNode(
         value: nodeValue,
         alpha: null,
         beta: null,
+        heuristic: typeof nodeValue === 'number' ? nodeValue : 0,
+        edgeCost: 1,
+        pathCost: null,
+        totalCost: null,
+        solved: false,
+        expanded: false,
+        parentId: null,
         children: nodeChildren || [],
         visited: false,
         pruned: false,
         current: false,
         inBestPath: false,
     };
+}
+
+export function createSearchNode(
+    nodeId,
+    nodeLabel,
+    nodeType,
+    heuristicValue,
+    edgeCost,
+    nodeChildren
+) {
+    const node = createTreeNode(
+        nodeId,
+        nodeLabel,
+        nodeType,
+        null,
+        nodeChildren || []
+    );
+
+    node.heuristic = heuristicValue;
+    node.edgeCost = edgeCost;
+
+    return node;
 }
 
 export function createExampleTree() {
@@ -54,6 +83,45 @@ export function createSingleRootTree() {
     return createTreeNode('A', 'A', 'LEAF', 0, []);
 }
 
+export function createSingleSearchRootTree() {
+    return createSearchNode('A', 'A', 'OR', 0, 0, []);
+}
+
+export function createAStarExampleTree() {
+    return createSearchNode('A', 'A', 'NODE', 7, 0, [
+        createSearchNode('B', 'B', 'NODE', 6, 1, [
+            createSearchNode('E', 'E', 'NODE', 3, 3, [
+                createSearchNode('K', 'K', 'GOAL', 0, 2, []),
+            ]),
+            createSearchNode('F', 'F', 'NODE', 5, 4, []),
+        ]),
+        createSearchNode('C', 'C', 'NODE', 2, 4, [
+            createSearchNode('G', 'G', 'GOAL', 0, 3, []),
+            createSearchNode('H', 'H', 'NODE', 4, 2, []),
+        ]),
+        createSearchNode('D', 'D', 'NODE', 4, 2, [
+            createSearchNode('I', 'I', 'GOAL', 0, 5, []),
+        ]),
+    ]);
+}
+
+export function createAOStarExampleTree() {
+    return createSearchNode('A', 'A', 'OR', 0, 0, [
+        createSearchNode('B', 'B', 'OR', 5, 1, [
+            createSearchNode('E', 'E', 'LEAF', 7, 1, []),
+            createSearchNode('F', 'F', 'LEAF', 9, 1, []),
+        ]),
+        createSearchNode('C', 'C', 'AND', 2, 1, [
+            createSearchNode('G', 'G', 'LEAF', 3, 1, []),
+            createSearchNode('H', 'H', 'LEAF', 0, 1, []),
+            createSearchNode('I', 'I', 'LEAF', 0, 1, []),
+        ]),
+        createSearchNode('D', 'D', 'OR', 4, 1, [
+            createSearchNode('J', 'J', 'LEAF', 0, 1, []),
+        ]),
+    ]);
+}
+
 export function cloneTree(node) {
     const clonedChildren = [];
 
@@ -72,6 +140,13 @@ export function cloneTree(node) {
         value: node.value,
         alpha: node.alpha,
         beta: node.beta,
+        heuristic: getNumberOrDefault(node.heuristic, 0),
+        edgeCost: getNumberOrDefault(node.edgeCost, 1),
+        pathCost: node.pathCost === undefined ? null : node.pathCost,
+        totalCost: node.totalCost === undefined ? null : node.totalCost,
+        solved: node.solved === true,
+        expanded: node.expanded === true,
+        parentId: node.parentId || null,
         children: clonedChildren,
         visited: node.visited,
         pruned: node.pruned,
@@ -114,6 +189,13 @@ export function assignTreeTypes(node, currentDepth, rootNodeType) {
         value: nodeValue,
         alpha: node.alpha,
         beta: node.beta,
+        heuristic: getNumberOrDefault(node.heuristic, 0),
+        edgeCost: getNumberOrDefault(node.edgeCost, currentDepth === 0 ? 0 : 1),
+        pathCost: node.pathCost === undefined ? null : node.pathCost,
+        totalCost: node.totalCost === undefined ? null : node.totalCost,
+        solved: node.solved === true,
+        expanded: node.expanded === true,
+        parentId: node.parentId || null,
         children: typedChildren,
         visited: node.visited,
         pruned: node.pruned,
@@ -146,6 +228,46 @@ export function clearSimulationFromTree(node) {
         value: cleanValue,
         alpha: null,
         beta: null,
+        heuristic: getNumberOrDefault(node.heuristic, 0),
+        edgeCost: getNumberOrDefault(node.edgeCost, 1),
+        pathCost: null,
+        totalCost: null,
+        solved: false,
+        expanded: false,
+        parentId: null,
+        children: cleanChildren,
+        visited: false,
+        pruned: false,
+        current: false,
+        inBestPath: false,
+    };
+}
+
+export function clearSearchSimulationFromTree(node) {
+    const cleanChildren = [];
+
+    for (
+        let childIndex = 0;
+        childIndex < node.children.length;
+        childIndex = childIndex + 1
+    ) {
+        cleanChildren.push(clearSearchSimulationFromTree(node.children[childIndex]));
+    }
+
+    return {
+        id: node.id,
+        label: node.label,
+        type: node.type || 'NODE',
+        value: null,
+        alpha: null,
+        beta: null,
+        heuristic: getNumberOrDefault(node.heuristic, 0),
+        edgeCost: getNumberOrDefault(node.edgeCost, 1),
+        pathCost: null,
+        totalCost: null,
+        solved: false,
+        expanded: false,
+        parentId: null,
         children: cleanChildren,
         visited: false,
         pruned: false,
@@ -645,6 +767,278 @@ export function createAlphaBetaSteps(sourceTree, rootNodeType) {
     return steps;
 }
 
+export function createAStarSteps(sourceTree) {
+    const workingTree = clearSearchSimulationFromTree(sourceTree);
+    const steps = [];
+    const openList = [];
+    const closedIds = [];
+
+    workingTree.pathCost = 0;
+    workingTree.totalCost = workingTree.heuristic;
+    workingTree.value = workingTree.totalCost;
+    openList.push(workingTree);
+
+    recordStep(
+        workingTree,
+        workingTree.id,
+        steps,
+        'Starting A* from node ' + workingTree.label,
+        'A* uses f(n) = g(n) + h(n). The start node has g = 0, so f is equal to its heuristic.'
+    );
+
+    while (openList.length > 0) {
+        openList.sort(function sortByTotalCost(firstNode, secondNode) {
+            if (firstNode.totalCost === secondNode.totalCost) {
+                return firstNode.label.localeCompare(secondNode.label);
+            }
+
+            return firstNode.totalCost - secondNode.totalCost;
+        });
+
+        const currentNode = openList.shift();
+        currentNode.visited = true;
+        currentNode.expanded = true;
+
+        recordStep(
+            workingTree,
+            currentNode.id,
+            steps,
+            'Choosing node ' +
+                currentNode.label +
+                ' because it has the lowest f = ' +
+                currentNode.totalCost,
+            'A* always expands the open node with the smallest f value, where f = path cost so far plus heuristic.'
+        );
+
+        if (currentNode.type === 'GOAL' || currentNode.children.length === 0) {
+            currentNode.solved = true;
+            workingTree.value = currentNode.pathCost;
+            markParentPath(workingTree, currentNode);
+
+            recordStep(
+                workingTree,
+                currentNode.id,
+                steps,
+                'Goal reached at node ' +
+                    currentNode.label +
+                    ' with path cost ' +
+                    currentNode.pathCost,
+                'When A* removes a goal from the open list, the path to that goal is the best path found.'
+            );
+
+            return steps;
+        }
+
+        closedIds.push(currentNode.id);
+
+        for (
+            let childIndex = 0;
+            childIndex < currentNode.children.length;
+            childIndex = childIndex + 1
+        ) {
+            const childNode = currentNode.children[childIndex];
+            const newPathCost =
+                currentNode.pathCost + getNumberOrDefault(childNode.edgeCost, 1);
+
+            if (closedIds.indexOf(childNode.id) !== -1) {
+                continue;
+            }
+
+            if (
+                childNode.pathCost === null ||
+                childNode.pathCost === undefined ||
+                newPathCost < childNode.pathCost
+            ) {
+                childNode.pathCost = newPathCost;
+                childNode.totalCost = newPathCost + childNode.heuristic;
+                childNode.value = childNode.totalCost;
+                childNode.parentId = currentNode.id;
+                childNode.visited = true;
+
+                if (openList.indexOf(childNode) === -1) {
+                    openList.push(childNode);
+                }
+
+                recordStep(
+                    workingTree,
+                    childNode.id,
+                    steps,
+                    'Updated node ' +
+                        childNode.label +
+                        ': g = ' +
+                        childNode.pathCost +
+                        ', h = ' +
+                        childNode.heuristic +
+                        ', f = ' +
+                        childNode.totalCost,
+                    'For each child, A* adds the edge cost to g and then adds the heuristic h to get f.'
+                );
+            }
+        }
+    }
+
+    recordStep(
+        workingTree,
+        workingTree.id,
+        steps,
+        'A* finished without finding a goal node',
+        'No goal was available in the reachable graph, so no final path can be selected.'
+    );
+
+    return steps;
+}
+
+export function createAOStarSteps(sourceTree) {
+    const workingTree = clearSearchSimulationFromTree(sourceTree);
+    const steps = [];
+
+    recordStep(
+        workingTree,
+        workingTree.id,
+        steps,
+        'Starting AO* from node ' + workingTree.label,
+        'AO* works on AND-OR graphs. OR nodes choose the cheapest child, while AND nodes must include all children.'
+    );
+
+    function solveNode(currentNode) {
+        currentNode.visited = true;
+
+        recordStep(
+            workingTree,
+            currentNode.id,
+            steps,
+            'Visiting node ' + currentNode.label + ' as ' + currentNode.type,
+            'AO* first expands the selected node and then backs up the new cost to its parent.'
+        );
+
+        if (currentNode.children.length === 0 || currentNode.type === 'LEAF') {
+            currentNode.value = currentNode.heuristic;
+            currentNode.solved = true;
+
+            recordStep(
+                workingTree,
+                currentNode.id,
+                steps,
+                'Leaf node ' +
+                    currentNode.label +
+                    ' has heuristic value ' +
+                    currentNode.heuristic,
+                'A terminal node has no children, so its value is simply its heuristic value.'
+            );
+
+            return currentNode.value;
+        }
+
+        const childValues = [];
+
+        for (
+            let childIndex = 0;
+            childIndex < currentNode.children.length;
+            childIndex = childIndex + 1
+        ) {
+            const childNode = currentNode.children[childIndex];
+            const solvedChildValue = solveNode(childNode);
+            const totalChildValue =
+                getNumberOrDefault(childNode.edgeCost, 1) + solvedChildValue;
+
+            childValues.push({
+                childNode: childNode,
+                totalChildValue: totalChildValue,
+            });
+
+            recordStep(
+                workingTree,
+                currentNode.id,
+                steps,
+                'Cost through ' +
+                    childNode.label +
+                    ' from ' +
+                    currentNode.label +
+                    ' is ' +
+                    totalChildValue,
+                'AO* adds the edge cost to the backed-up child value.'
+            );
+        }
+
+        if (currentNode.type === 'AND') {
+            let totalValue = 0;
+
+            for (
+                let childIndex = 0;
+                childIndex < childValues.length;
+                childIndex = childIndex + 1
+            ) {
+                totalValue = totalValue + childValues[childIndex].totalChildValue;
+            }
+
+            currentNode.value = totalValue;
+            currentNode.solved = true;
+
+            recordStep(
+                workingTree,
+                currentNode.id,
+                steps,
+                'AND node ' +
+                    currentNode.label +
+                    ' value becomes ' +
+                    totalValue,
+                'At an AND node, all child branches are required, so their costs are added.'
+            );
+
+            return currentNode.value;
+        }
+
+        let bestChildValue = Infinity;
+        let bestChildNode = null;
+
+        for (
+            let childIndex = 0;
+            childIndex < childValues.length;
+            childIndex = childIndex + 1
+        ) {
+            if (childValues[childIndex].totalChildValue < bestChildValue) {
+                bestChildValue = childValues[childIndex].totalChildValue;
+                bestChildNode = childValues[childIndex].childNode;
+            }
+        }
+
+        currentNode.value = bestChildValue;
+        currentNode.solved = true;
+
+        recordStep(
+            workingTree,
+            currentNode.id,
+            steps,
+            'OR node ' +
+                currentNode.label +
+                ' chooses ' +
+                bestChildNode.label +
+                ' with value ' +
+                bestChildValue,
+            'At an OR node, only one branch is needed, so AO* chooses the minimum-cost child.'
+        );
+
+        return currentNode.value;
+    }
+
+    solveNode(workingTree);
+    clearCurrentFlags(workingTree);
+    markAOStarBestPath(workingTree);
+
+    recordStep(
+        workingTree,
+        workingTree.id,
+        steps,
+        'Final AO* value of node ' +
+            workingTree.label +
+            ' is ' +
+            workingTree.value,
+        'The highlighted solution graph shows the selected OR branches and all required AND branches.'
+    );
+
+    return steps;
+}
+
 function getInternalNodeType(currentDepth, rootNodeType) {
     if (currentDepth % 2 === 0) {
         return rootNodeType;
@@ -655,6 +1049,71 @@ function getInternalNodeType(currentDepth, rootNodeType) {
     }
 
     return 'MAX';
+}
+
+function getNumberOrDefault(numberValue, defaultValue) {
+    if (typeof numberValue === 'number' && !Number.isNaN(numberValue)) {
+        return numberValue;
+    }
+
+    return defaultValue;
+}
+
+function markParentPath(rootNode, goalNode) {
+    let currentNode = goalNode;
+
+    while (currentNode !== null) {
+        currentNode.inBestPath = true;
+
+        if (currentNode.parentId === null) {
+            break;
+        }
+
+        currentNode = findNodeById(rootNode, currentNode.parentId);
+    }
+}
+
+function markAOStarBestPath(node) {
+    node.inBestPath = true;
+
+    if (node.children.length === 0 || node.type === 'LEAF') {
+        return;
+    }
+
+    if (node.type === 'AND') {
+        for (
+            let childIndex = 0;
+            childIndex < node.children.length;
+            childIndex = childIndex + 1
+        ) {
+            markAOStarBestPath(node.children[childIndex]);
+        }
+
+        return;
+    }
+
+    let bestChild = null;
+    let bestChildValue = Infinity;
+
+    for (
+        let childIndex = 0;
+        childIndex < node.children.length;
+        childIndex = childIndex + 1
+    ) {
+        const childNode = node.children[childIndex];
+        const totalChildValue =
+            getNumberOrDefault(childNode.edgeCost, 1) +
+            getNumberOrDefault(childNode.value, childNode.heuristic);
+
+        if (totalChildValue < bestChildValue) {
+            bestChildValue = totalChildValue;
+            bestChild = childNode;
+        }
+    }
+
+    if (bestChild !== null) {
+        markAOStarBestPath(bestChild);
+    }
 }
 
 function collectNodeIds(node, nodeIds) {
